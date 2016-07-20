@@ -6,12 +6,13 @@ import (
 )
 
 type testEvent struct {
-	id, event, data string
+	id, event, data, comment string
 }
 
-func (e *testEvent) Id() string    { return e.id }
-func (e *testEvent) Event() string { return e.event }
-func (e *testEvent) Data() string  { return e.data }
+func (e *testEvent) Id() string      { return e.id }
+func (e *testEvent) Event() string   { return e.event }
+func (e *testEvent) Data() string    { return e.data }
+func (e *testEvent) Comment() string { return e.comment }
 
 var encoderTests = []struct {
 	event  *testEvent
