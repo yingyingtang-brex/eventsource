@@ -21,10 +21,10 @@ func makeCachedEncodingEvent(evt Event) cachedEncodingEvent {
 
 func (evt cachedEncodingEvent) Encode() []byte {
 	evt.once.Do(func() {
-		var buff bytes.Buffer
-		enc := NewEncoder(&buff, false)
-		enc.Encode(evt)
-		evt.encoded = buff.Bytes()
+		buf := new(bytes.Buffer)
+		enc := NewEncoder(buf, false)
+		enc.Encode(evt.wrapped)
+		evt.encoded = buf.Bytes()
 	})
 
 	return evt.encoded
