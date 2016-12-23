@@ -41,6 +41,16 @@ func (dec *Decoder) readString(inputCh chan string, errCh chan error) {
 	}
 }
 
+func (dec *Decoder) peek(peekCh chan bool, errCh chan error) {
+	_, err := dec.Peek(1)
+
+	if err != nil {
+		errCh <- err
+	} else {
+		peekCh <- true
+	}
+}
+
 // Decode reads the next Event from a stream (and will block until one
 // comes in).
 // Graceful disconnects (between events) are indicated by an io.EOF error.
@@ -51,7 +61,21 @@ func (dec *Decoder) readString(inputCh chan string, errCh chan error) {
 func (dec *Decoder) Decode(reconnectAfter time.Duration) (Event, *string, error) {
 
 	// peek ahead before we start a new event so we can return EOFs
-	_, err := dec.Peek(1)
+	var err error
+	if reconnectAfter > 0 {
+		peekCh := make(chan bool, 1)
+		errCh := make(chan error, 1)
+		go dec.peek(peekCh, errCh)
+		select {
+		case <-peekCh:
+		case err = <-errCh:
+		case <-time.After(reconnectAfter):
+			err = errors.New("Timeout encountered waiting for next event")
+		}
+	} else {
+		_, err = dec.Peek(1)
+	}
+
 	if err == io.ErrUnexpectedEOF {
 		err = io.EOF
 	}
@@ -72,7 +96,7 @@ func (dec *Decoder) Decode(reconnectAfter time.Duration) (Event, *string, error)
 			case line = <-inputCh:
 			case err = <-errCh:
 			case <-time.After(reconnectAfter):
-				err = errors.New("Timeout encountered waiting for next message")
+				err = errors.New("Timeout encountered while parsing event")
 			}
 		} else {
 			line, err = dec.ReadString('\n')
