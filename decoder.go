@@ -2,9 +2,11 @@ package eventsource
 
 import (
 	"bufio"
+	"errors"
 	"io"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type publication struct {
@@ -29,6 +31,16 @@ func NewDecoder(r io.Reader) *Decoder {
 	return dec
 }
 
+func (dec *Decoder) readString(inputCh chan string, errCh chan error) {
+	result, err := dec.ReadString('\n')
+
+	if err != nil {
+		errCh <- err
+	} else {
+		inputCh <- result
+	}
+}
+
 // Decode reads the next Event from a stream (and will block until one
 // comes in).
 // Graceful disconnects (between events) are indicated by an io.EOF error.
@@ -36,7 +48,7 @@ func NewDecoder(r io.Reader) *Decoder {
 // show up as some other error (most likely io.ErrUnexpectedEOF).
 // Decoding will return either a successfully parsed Event, a comment, or
 // an error.
-func (dec *Decoder) Decode() (Event, *string, error) {
+func (dec *Decoder) Decode(reconnectAfter time.Duration) (Event, *string, error) {
 
 	// peek ahead before we start a new event so we can return EOFs
 	_, err := dec.Peek(1)
@@ -48,7 +60,23 @@ func (dec *Decoder) Decode() (Event, *string, error) {
 	}
 	pub := new(publication)
 	for {
-		line, err := dec.ReadString('\n')
+		var line string
+		var err error
+
+		if reconnectAfter > 0 {
+			inputCh := make(chan string, 1)
+			errCh := make(chan error, 1)
+			go dec.readString(inputCh, errCh)
+
+			select {
+			case line = <-inputCh:
+			case err = <-errCh:
+			case <-time.After(reconnectAfter):
+				err = errors.New("Timeout encountered waiting for next message")
+			}
+		} else {
+			line, err = dec.ReadString('\n')
+		}
 		if err != nil {
 			return nil, nil, err
 		}

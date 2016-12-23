@@ -32,6 +32,8 @@ type Stream struct {
 	Logger *log.Logger
 	// The maximum time to wait between reconnection attempts
 	maxReconnectionTime time.Duration
+	// Force a reconnect if no message is received in this period of time
+	reconnectAfter time.Duration
 }
 
 type SubscriptionError struct {
@@ -143,7 +145,7 @@ func (stream *Stream) stream(r io.ReadCloser) {
 	defer r.Close()
 	dec := NewDecoder(r)
 	for {
-		ev, comment, err := dec.Decode()
+		ev, comment, err := dec.Decode(stream.reconnectAfter)
 
 		if err != nil {
 			stream.Errors <- err
