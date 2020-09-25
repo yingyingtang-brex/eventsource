@@ -153,6 +153,7 @@ func newLineStreamChannel(r *bufio.Reader) (<-chan string, <-chan error) {
 					fmt.Fprintf(os.Stderr, "line with EOF error: %s", line)
 				} else {
 					fmt.Fprintf(os.Stderr, "ReadString non EOF error")
+					fmt.Println(err)
 				}
 
 				errorCh <- err
