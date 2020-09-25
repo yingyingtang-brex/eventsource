@@ -2,7 +2,9 @@ package eventsource
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -150,6 +152,7 @@ func newLineStreamChannel(r *bufio.Reader) (<-chan string, <-chan error) {
 				errorCh <- err
 				return
 			}
+			fmt.Fprintf(os.Stderr, "printing line: %s", line)
 			linesCh <- line
 		}
 	}()
